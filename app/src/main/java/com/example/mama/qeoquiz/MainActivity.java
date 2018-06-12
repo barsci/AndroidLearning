@@ -1,5 +1,6 @@
 package com.example.mama.qeoquiz;
 
+import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -13,13 +14,20 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
     private static final String KEY_INDEX = "index";
+    public static final String EXTRA_ANSWER_IS_TRUE =
+            "com.example.mama.qeoquiz.answer_is_true";
+    private static final String CHEATERR = "cheaterr";
+    private static final String CHEATED_QUESTION_NUMBER = "cheated_q_numer";
     private int mCurrentIndex = 0;
 
     private Button mTrueButton;
     private Button mFalseButton;
+    private Button mCheatButton;
     private ImageButton mPreviousButton;
     private ImageButton mNextButton;
     private TextView mQuestionTextView;
+    private boolean mIsCheater;
+    private int mCheatedQuestionNumber=-1;
 
     private TrueFalse[] mQuestionBank = new TrueFalse[] {
             new TrueFalse(R.string.question_oceans, true),
@@ -39,10 +47,14 @@ public class MainActivity extends AppCompatActivity {
 
         int messageResId = 0;
 
-        if (userPressedTrue == answerIsTrue) {
-            messageResId = R.string.correct_toast;
+        if (mIsCheater) {
+            messageResId = R.string.judgment_toast;
         } else {
-            messageResId = R.string.incorrect_toast;
+            if (userPressedTrue == answerIsTrue) {
+                messageResId = R.string.correct_toast;
+            } else {
+                messageResId = R.string.incorrect_toast;
+            }
         }
         Toast.makeText(this, messageResId, Toast.LENGTH_SHORT)
                 .show();
@@ -57,6 +69,8 @@ public class MainActivity extends AppCompatActivity {
 
         if (savedInstanceState != null) {
             mCurrentIndex = savedInstanceState.getInt(KEY_INDEX, 0);
+            mIsCheater = savedInstanceState.getBoolean(CHEATERR);
+            mCheatedQuestionNumber = savedInstanceState.getInt(CHEATED_QUESTION_NUMBER);
         }
 
         mQuestionTextView = (TextView)findViewById(R.id.question_text_view);
@@ -85,6 +99,11 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 mCurrentIndex = (mCurrentIndex + 1) % mQuestionBank.length;
                 updateQuestion();
+
+                if(mCheatedQuestionNumber!=mCurrentIndex)
+                    mIsCheater = false;
+                else
+                    mIsCheater=true;
             }
         });
 
@@ -109,12 +128,35 @@ public class MainActivity extends AppCompatActivity {
                 updateQuestion();
             }
         });
+
+        mCheatButton = (Button) findViewById(R.id.cheat_button);
+        mCheatButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MainActivity.this,CheatActivity.class);
+                boolean answerIsTrue = mQuestionBank[mCurrentIndex].ismTrueQuestion();
+                mCheatedQuestionNumber=mCurrentIndex;
+                intent.putExtra(EXTRA_ANSWER_IS_TRUE, answerIsTrue);
+                startActivityForResult(intent,0);
+            }
+        });
     }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (data == null) {
+            return;
+        }
+        mIsCheater = data.getBooleanExtra(CheatActivity.EXTRA_ANSWER_SHOWN, false);
+    }
+
     @Override
     public void onSaveInstanceState(Bundle savedInstanceState) {
         super.onSaveInstanceState(savedInstanceState);
         Log.i(TAG, "onSaveInstanceState");
         savedInstanceState.putInt(KEY_INDEX, mCurrentIndex);
+        savedInstanceState.putBoolean(CHEATERR,mIsCheater);
+        savedInstanceState.putInt(CHEATED_QUESTION_NUMBER,mCheatedQuestionNumber);
     }
     @Override
     public void onStart() {
